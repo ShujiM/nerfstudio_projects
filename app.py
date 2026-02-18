@@ -65,9 +65,10 @@ def run_command(command, log_placeholder):
             if len(st.session_state.logs) > 1000:
                 st.session_state.logs.pop(0)
             
-            # Update log view every few lines or roughly
-            log_str = "\n".join(st.session_state.logs[-20:]) # Show last 20 lines in preview
-            log_placeholder.code(log_str)
+            # Update log view every few lines
+            if len(st.session_state.logs) % 2 == 0 or len(st.session_state.logs) < 20:
+                log_str = "\n".join(st.session_state.logs[-50:]) # Show last 50 lines in preview
+                log_placeholder.code(log_str)
             
     return process.poll()
 
@@ -81,6 +82,12 @@ def stop_process():
 st.sidebar.title("Nerfstudio Web UI")
 page = st.sidebar.radio("Navigation", ["1. Upload Data", "2. Process Data", "3. Train Model", "4. View & Export"])
 
+st.sidebar.markdown("---")
+if st.session_state.current_project:
+    st.sidebar.success(f"Project: {st.session_state.current_project}")
+else:
+    st.sidebar.info("No project selected")
+
 # ==========================================
 # 1. Upload Data
 # ==========================================
@@ -88,7 +95,8 @@ if page == "1. Upload Data":
     st.header("📂 Data Upload")
     
     project_name = st.text_input("Project Name (no spaces)", value="my_project")
-    st.session_state.current_project = project_name
+    if project_name:
+        st.session_state.current_project = project_name
     
     upload_type = st.radio("Data Type", ["Video (.mp4)", "Images (folder)"])
     
@@ -118,33 +126,45 @@ elif page == "2. Process Data":
     st.header("⚙️ Process Data (COLMAP)")
     
     project_name = st.text_input("Project Name", value=st.session_state.current_project)
-    data_type = st.selectbox("Input Type", ["video", "images"])
     
-    input_path = ""
-    if data_type == "video":
-        input_path = os.path.join(UPLOAD_DIR, f"{project_name}.mp4")
+    # Check if input exists
+    video_path = os.path.join(UPLOAD_DIR, f"{project_name}.mp4")
+    images_path = os.path.join(UPLOAD_DIR, project_name)
+    
+    data_type = "video" if os.path.exists(video_path) else "images"
+    input_path = video_path if data_type == "video" else images_path
+    
+    if not os.path.exists(input_path):
+        st.warning(f"Input data not found for project '{project_name}'. Please go to '1. Upload Data' first.")
     else:
-        input_path = os.path.join(UPLOAD_DIR, project_name)
+        st.info(f"Input: {input_path} ({data_type})")
+        output_path = os.path.join(DATA_DIR, project_name)
+        st.info(f"Output Directory: {output_path}")
+
+        # Processing Options
+        num_frames = st.number_input("Number of Frames (for video)", value=300, min_value=10)
         
-    output_path = os.path.join(DATA_DIR, project_name)
-    
-    st.info(f"Input: {input_path}")
-    st.info(f"Output: {output_path}")
-    
-    if st.button("Start Processing"):
-        cmd = ["ns-process-data", data_type, "--data", input_path, "--output-dir", output_path]
-        if data_type == "images":
-            # For images, the command is slightly different: ns-process-data images --data ...
-            pass 
+        if st.button("Start Processing"):
+            cmd = ["ns-process-data", data_type, "--data", input_path, "--output-dir", output_path]
             
-        st.write(f"Running: {' '.join(cmd)}")
-        log_area = st.empty()
-        ret = run_command(cmd, log_area)
-        
-        if ret == 0:
-            st.success("Processing Complete!")
-        else:
-            st.error("Processing Failed.")
+            if data_type == "video":
+                cmd.extend(["--num-frames-target", str(num_frames)])
+            
+            # Additional flags to be more robust?
+            # cmd.extend(["--verbose"])
+
+            st.write(f"Running: {' '.join(cmd)}")
+            log_area = st.empty()
+            ret = run_command(cmd, log_area)
+            
+            # Verify result
+            transforms_file = os.path.join(output_path, "transforms.json")
+            if ret == 0 and os.path.exists(transforms_file):
+                st.success(f"Processing Complete! transforms.json created at {transforms_file}")
+            else:
+                st.error("Processing Failed or Incomplete. Check logs above.")
+                if not os.path.exists(transforms_file):
+                    st.warning("⚠️ transforms.json was not created. COLMAP might have failed.")
 
 # ==========================================
 # 3. Train Model
@@ -156,25 +176,40 @@ elif page == "3. Train Model":
     model_type = st.selectbox("Model", ["splatfacto", "nerfacto"])
     
     data_path = os.path.join(DATA_DIR, project_name)
+    transforms_file = os.path.join(data_path, "transforms.json")
     
+    # Validation
     if not os.path.exists(data_path):
-        st.warning(f"Data directory not found: {data_path}")
-    else:
-        st.success(f"Found data at: {data_path}")
+        st.error(f"❌ Data directory not found: {data_path}")
+        st.stop()
+        
+    if not os.path.exists(transforms_file):
+        st.error(f"❌ transforms.json not found in {data_path}")
+        st.warning("👉 Please go to '2. Process Data' and run processing first.")
+        st.stop()
+        
+    st.success(f"✅ Found processed data at: {data_path}")
     
     col1, col2 = st.columns(2)
     with col1:
         if st.button("Start Training"):
-            cmd = ["ns-train", model_type, "--data", data_path, "--viewer.quit-on-train-completion", "False"]
+            # timestamp for unique output
+            timestamp = time.strftime("%Y-%m-%d_%H%M%S")
+            cmd = [
+                "ns-train", model_type, 
+                "--data", data_path, 
+                "--viewer.quit-on-train-completion", "False",
+                "--viewer.websocket-port", "7007",
+                "--project-name", project_name,
+                "--timestamp", timestamp,
+                "--vis", "viewer"
+            ]
             st.write(f"Running: {' '.join(cmd)}")
             
-            # Start in separate process so we don't block UI entirely? 
-            # Ideally stream logs.
+            st.info("Training started... Logs will stream below.")
+            st.info("Viewer will be available at http://localhost:7007")
+            
             log_area = st.empty()
-            
-            # Hint to user
-            st.info("Training started. Viewer running at http://localhost:7007")
-            
             run_command(cmd, log_area)
             
     with col2:
@@ -183,7 +218,10 @@ elif page == "3. Train Model":
 
     st.markdown("### Viewer")
     st.markdown("Access the [Nerfstudio Viewer](http://localhost:7007) separately if the iframe doesn't load.")
-    st.components.v1.iframe("http://localhost:7007", height=600)
+    try:
+        st.components.v1.iframe("http://localhost:7007", height=600)
+    except:
+        st.warning("Viewer not loaded.")
 
 # ==========================================
 # 4. View & Export
@@ -191,19 +229,14 @@ elif page == "3. Train Model":
 elif page == "4. View & Export":
     st.header("📦 Export & Download")
     
-    # List available configs
-    # Configs are usually in outputs/{project_name}/{model}/{timestamp}/config.yml
-    
     projects = []
     if os.path.exists(OUTPUT_DIR):
         projects = [d for d in os.listdir(OUTPUT_DIR) if os.path.isdir(os.path.join(OUTPUT_DIR, d))]
     
-    selected_project = st.selectbox("Select Project", projects)
+    selected_project = st.selectbox("Select Project", projects, index=projects.index(st.session_state.current_project) if st.session_state.current_project in projects else 0)
     
     config_path = None
     if selected_project:
-        # Find latest config
-        # Assuming structure: outputs/project/splatfacto/timestamp/config.yml
         base_path = os.path.join(OUTPUT_DIR, selected_project)
         # Search for config.yml recursively
         configs = glob.glob(os.path.join(base_path, "**", "config.yml"), recursive=True)
@@ -217,7 +250,6 @@ elif page == "4. View & Export":
     export_format = st.selectbox("Export Format", ["gaussian-splat", "pointcloud", "mesh"])
     
     if config_path and st.button("Export PLY"):
-        # ns-export gaussian-splat --load-config ... --output-dir ...
         output_name = f"{selected_project}_{int(time.time())}"
         export_out_dir = os.path.join(EXPORT_DIR, output_name)
         
@@ -247,5 +279,5 @@ elif page == "4. View & Export":
 # Logs Footer
 # ==========================================
 st.markdown("---")
-with st.expander("Full Process Logs", expanded=False):
+with st.expander("Full Process Logs", expanded=True):
     st.code("\n".join(st.session_state.logs))
