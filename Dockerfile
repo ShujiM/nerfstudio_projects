@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Steamlit for Web UI
-RUN pip install streamlit watchdog
+RUN python3 -m pip install streamlit watchdog
 
 # Default command: start interactive bash
 CMD ["/bin/bash"]
