@@ -1,0 +1,14 @@
+# Exclude large data directories from Docker build context
+data/
+outputs/
+exports/
+新しいフォルダー/
+
+# Git
+.git/
+.gitignore
+
+# OS files
+*.log
+Thumbs.db
+desktop.ini

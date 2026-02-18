@@ -1,0 +1,25 @@
+services:
+  nerfstudio:
+    build: .
+    container_name: nerfstudio
+    # NVIDIA GPU support
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+    # Volume mounts: host data ↔ container workspace
+    volumes:
+      - ./data:/workspace/data
+      - ./outputs:/workspace/outputs
+      - ./exports:/workspace/exports
+    # Nerfstudio viewer port
+    ports:
+      - "7007:7007"
+    # Keep container running for interactive use
+    stdin_open: true
+    tty: true
+    # Shared memory size (needed for PyTorch DataLoader)
+    shm_size: "12gb"
