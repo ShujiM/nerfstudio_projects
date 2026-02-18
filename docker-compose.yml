@@ -18,6 +18,7 @@ services:
     # Nerfstudio viewer port
     ports:
       - "7007:7007"
+      - "8501:8501"
     # Keep container running for interactive use
     stdin_open: true
     tty: true

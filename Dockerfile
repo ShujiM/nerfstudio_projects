@@ -11,5 +11,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     htop \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Steamlit for Web UI
+RUN pip install streamlit watchdog
+
 # Default command: start interactive bash
 CMD ["/bin/bash"]

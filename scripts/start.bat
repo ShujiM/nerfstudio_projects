@@ -12,7 +12,15 @@ if "%1"=="build" (
 if "%1"=="up" (
     echo Starting Nerfstudio container...
     docker compose up -d
-    echo Container started. Use 'docker exec -it nerfstudio bash' to enter.
+    echo Container started.
+    echo    - Web UI: http://localhost:8501
+    echo    - Viewer: http://localhost:7007
+    goto :eof
+)
+
+if "%1"=="web" (
+    echo Starting Web UI...
+    docker compose exec nerfstudio streamlit run app.py --server.address=0.0.0.0
     goto :eof
 )
 

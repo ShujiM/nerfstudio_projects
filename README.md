@@ -21,14 +21,16 @@ docker compose build
 # 3. コンテナ起動
 docker compose up -d
 
-# 4. コンテナに入る
-docker exec -it nerfstudio bash
+# 4. Webインターフェース起動
+# ブラウザで http://localhost:8501 にアクセス
+scripts\start.bat web
 ```
 
 ## ディレクトリ構成
 
 ```
 nerfstudio_projects/
+├── app.py                  # 🆕 Web UIコード
 ├── Dockerfile              # Docker設定
 ├── docker-compose.yml      # Compose設定 (GPU, ボリューム, ポート)
 ├── .gitignore              # Git除外設定
@@ -59,6 +61,7 @@ nerfstudio_projects/
 # Windows
 scripts\start.bat build     # イメージビルド
 scripts\start.bat up        # コンテナ起動
+scripts\start.bat web       # Web UI起動 (http://localhost:8501)
 scripts\start.bat shell     # シェルに入る
 scripts\start.bat gpu       # GPU確認
 scripts\start.bat down      # コンテナ停止
@@ -79,7 +82,7 @@ ns-train splatfacto --data /workspace/data/nerfstudio/poster
 ns-train nerfacto --data /workspace/data/nerfstudio/poster
 
 # ビューワー (ポート7007)
-# ブラウザで http://localhost:7007 にアクセス
+# Web UI経由または直接ブラウザで http://localhost:7007 にアクセス
 ```
 
 ## Dockerボリューム
