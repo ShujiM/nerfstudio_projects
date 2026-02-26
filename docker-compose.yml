@@ -1,8 +1,10 @@
 services:
+  # ==========================================
+  # Nerfstudio (splatfacto, nerfacto等) + Web UI
+  # ==========================================
   nerfstudio:
-    build: .
+    build: containers/nerfstudio
     container_name: nerfstudio
-    # NVIDIA GPU support
     deploy:
       resources:
         reservations:
@@ -10,17 +12,66 @@ services:
             - driver: nvidia
               count: all
               capabilities: [ gpu ]
-    # Volume mounts: host data ↔ container workspace
+    volumes:
+      - .:/workspace
+      - ./data:/workspace/data
+      - ./outputs:/workspace/outputs
+      - ./exports:/workspace/exports
+      # Docker socket for controlling sibling containers from Web UI
+      - //var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "7007:7007"
+      - "8501:8501"
+    stdin_open: true
+    tty: true
+    shm_size: "12gb"
+
+  # ==========================================
+  # SuGaR (Mesh Extraction from 3DGS)
+  # ==========================================
+  sugar:
+    build: containers/sugar
+    container_name: sugar
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
     volumes:
       - ./data:/workspace/data
       - ./outputs:/workspace/outputs
       - ./exports:/workspace/exports
-    # Nerfstudio viewer port
-    ports:
-      - "7007:7007"
-      - "8501:8501"
-    # Keep container running for interactive use
+      - ./scripts:/workspace/scripts
     stdin_open: true
     tty: true
-    # Shared memory size (needed for PyTorch DataLoader)
     shm_size: "12gb"
+    profiles:
+      - sugar
+      - all
+
+  # ==========================================
+  # 2DGS (2D Gaussian Splatting)
+  # ==========================================
+  2dgs:
+    build: containers/2dgs
+    container_name: 2dgs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+    volumes:
+      - ./data:/workspace/data
+      - ./outputs:/workspace/outputs
+      - ./exports:/workspace/exports
+      - ./scripts:/workspace/scripts
+    stdin_open: true
+    tty: true
+    shm_size: "12gb"
+    profiles:
+      - 2dgs
+      - all

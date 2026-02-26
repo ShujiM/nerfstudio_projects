@@ -19,7 +19,7 @@ case "${1}" in
     ;;
   web)
     echo "🌐 Starting Web UI..."
-    docker compose exec nerfstudio streamlit run app.py --server.address=0.0.0.0
+    docker compose exec nerfstudio python3 -m streamlit run app.py --server.address=0.0.0.0
     ;;
   shell)
     echo "🐚 Opening shell in Nerfstudio container..."
