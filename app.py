@@ -361,6 +361,20 @@ elif page == "2. ⚙️ データ前処理":
                 progress_bar = st.progress(0, text="準備中...")
                 log_area = st.empty()
 
+                # Clean up previous run artifacts to avoid database accumulation
+                progress_bar.progress(0.02, text="Step 0/5: 前回データをクリーンアップ中...")
+                db_path_clean = os.path.join(output_path, "database.db")
+                sparse_path_clean = os.path.join(output_path, "sparse")
+                for clean_path in [db_path_clean, sparse_path_clean,
+                                   os.path.join(output_path, "images"),
+                                   os.path.join(output_path, "images_2"),
+                                   os.path.join(output_path, "images_4"),
+                                   os.path.join(output_path, "images_8")]:
+                    if os.path.isfile(clean_path):
+                        os.remove(clean_path)
+                    elif os.path.isdir(clean_path):
+                        shutil.rmtree(clean_path)
+
                 # Step 1: Extract frames from video (if video)
                 if data_type == "video":
                     progress_bar.progress(0.05, text="Step 1/5: フレーム抽出...")
@@ -437,6 +451,18 @@ elif page == "2. ⚙️ データ前処理":
         else:
             # Standard COLMAP via ns-process-data
             if st.button("🚀 前処理開始 (COLMAP)"):
+                # Clean up previous run artifacts
+                for clean_path in [os.path.join(output_path, "database.db"),
+                                   os.path.join(output_path, "colmap"),
+                                   os.path.join(output_path, "sparse"),
+                                   os.path.join(output_path, "images"),
+                                   os.path.join(output_path, "images_2"),
+                                   os.path.join(output_path, "images_4"),
+                                   os.path.join(output_path, "images_8")]:
+                    if os.path.isfile(clean_path):
+                        os.remove(clean_path)
+                    elif os.path.isdir(clean_path):
+                        shutil.rmtree(clean_path)
                 progress_bar = st.progress(0, text="COLMAP処理中...")
                 progress_config = {
                     'type': 'steps',
