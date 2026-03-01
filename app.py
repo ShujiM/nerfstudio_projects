@@ -91,7 +91,7 @@ def run_command(command, log_placeholder, progress_bar=None, progress_config=Non
     if st.session_state.process:
         try:
             os.kill(st.session_state.pid, signal.SIGTERM)
-        except:
+        except (ProcessLookupError, OSError):
             pass
         st.session_state.process = None
 
@@ -148,7 +148,7 @@ def run_command(command, log_placeholder, progress_bar=None, progress_config=Non
                             if den > 0:
                                 progress_bar.progress(min(num / den, 1.0),
                                     text=f"{num}/{den}")
-                except:
+                except (ValueError, IndexError, AttributeError):
                     pass
 
             # Update log display
@@ -185,30 +185,43 @@ def check_container_status(container_name):
             capture_output=True, text=True, timeout=5
         )
         return result.stdout.strip() == "true"
-    except:
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
         return False
 
 
-def check_image_exists(image_name):
-    """Check if a Docker image exists."""
+def check_image_exists(container_name):
+    """Check if a Docker image for a container exists (by checking if container was ever created)."""
     try:
         result = subprocess.run(
-            ["docker", "images", "-q", image_name],
+            ["docker", "inspect", "-f", "{{.Image}}", container_name],
             capture_output=True, text=True, timeout=5
         )
-        return bool(result.stdout.strip())
-    except:
+        return result.returncode == 0 and bool(result.stdout.strip())
+    except Exception:
         return False
 
 
-def get_container_status_emoji(container_name, image_name):
+def get_container_status_emoji(container_name):
     """Get status emoji for a container."""
     if check_container_status(container_name):
         return "🟢"  # Running
-    elif check_image_exists(image_name):
+    elif check_image_exists(container_name):
         return "🟡"  # Built but not running
     else:
         return "🔴"  # Not installed
+
+
+def get_video_duration(video_path):
+    """Get video duration in seconds using ffprobe."""
+    try:
+        result = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", video_path],
+            capture_output=True, text=True, timeout=10
+        )
+        return float(result.stdout.strip())
+    except Exception:
+        return 30.0  # fallback to 30 seconds
 
 
 def find_ply_files(directory):
@@ -267,9 +280,9 @@ else:
 # Framework status (dynamic)
 st.sidebar.markdown("---")
 st.sidebar.markdown("### フレームワーク状態")
-ns_status = get_container_status_emoji("nerfstudio", "nerfstudio_projects-nerfstudio")
-sg_status = get_container_status_emoji("sugar", "nerfstudio_projects-sugar")
-dgs_status = get_container_status_emoji("2dgs", "nerfstudio_projects-2dgs")
+ns_status = get_container_status_emoji("nerfstudio")
+sg_status = get_container_status_emoji("sugar")
+dgs_status = get_container_status_emoji("2dgs")
 st.sidebar.markdown(f"{ns_status} **Nerfstudio** (splatfacto, nerfacto等)")
 st.sidebar.markdown(f"{sg_status} **SuGaR** (メッシュ抽出)")
 st.sidebar.markdown(f"{dgs_status} **2DGS** (高品質レンダリング)")
@@ -352,9 +365,11 @@ elif page == "2. ⚙️ データ前処理":
                 if data_type == "video":
                     progress_bar.progress(0.05, text="Step 1/5: フレーム抽出...")
                     os.makedirs(os.path.join(output_path, "images"), exist_ok=True)
+                    duration = get_video_duration(input_path)
+                    extract_fps = max(num_frames / duration, 1)
                     ffmpeg_cmd = [
                         "ffmpeg", "-i", input_path,
-                        "-vf", f"fps={num_frames}/{30}",
+                        "-vf", f"fps={extract_fps:.4f}",
                         "-q:v", "1",
                         os.path.join(output_path, "images", "frame_%05d.jpg")
                     ]
@@ -546,7 +561,7 @@ elif page == "3. 🏋️ トレーニング":
             st.markdown("[Nerfstudio Viewer](http://localhost:7007) (別タブで開く)")
             try:
                 st.components.v1.iframe("http://localhost:7007", height=600)
-            except:
+            except Exception:
                 st.warning("Viewerが読み込めません。トレーニングを開始してください。")
 
     # ------------------------------------------
