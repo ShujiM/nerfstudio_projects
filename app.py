@@ -568,14 +568,13 @@ elif page == "3. 🏋️ トレーニング":
                 if viewer_enabled:
                     st.info("🖥️ Viewer: http://localhost:7007")
 
-                progress_bar = st.progress(0, text="トレーニング開始...")
                 progress_config = {
                     'type': 'iterations',
                     'iteration_pattern': r'(?:Step|step|Iter).*?(\d+).*?/.*?(\d+)',
                     'total_iterations': max_iterations,
                 }
                 log_area = st.empty()
-                run_command(cmd, log_area, progress_bar, progress_config)
+                run_command(cmd, log_area, progress_bar=None, progress_config=progress_config)
 
         with col2:
             if st.button("⏹️ トレーニング停止"):
@@ -626,7 +625,6 @@ elif page == "3. 🏋️ トレーニング":
                 ]
                 st.write(f"実行: `{' '.join(cmd)}`")
                 st.info("SuGaRコンテナで実行中...")
-                progress_bar = st.progress(0, text="SuGaRパイプライン開始...")
                 progress_config = {
                     'type': 'steps',
                     'total_steps': 5,
@@ -639,7 +637,7 @@ elif page == "3. 🏋️ トレーニング":
                     ]
                 }
                 log_area = st.empty()
-                run_command(cmd, log_area, progress_bar, progress_config)
+                run_command(cmd, log_area, progress_bar=None, progress_config=progress_config)
 
         with col2:
             if st.button("⏹️ 停止"):
@@ -683,14 +681,13 @@ elif page == "3. 🏋️ トレーニング":
                 ]
                 st.write(f"実行: `{' '.join(cmd)}`")
                 st.info("2DGSコンテナで実行中...")
-                progress_bar = st.progress(0, text="2DGSトレーニング開始...")
                 progress_config = {
                     'type': 'iterations',
                     'iteration_pattern': r'(?:iteration|iter|step)\s*(\d+)',
                     'total_iterations': dgs_iterations,
                 }
                 log_area = st.empty()
-                run_command(cmd, log_area, progress_bar, progress_config)
+                run_command(cmd, log_area, progress_bar=None, progress_config=progress_config)
 
         with col2:
             if st.button("⏹️ 停止 "):
