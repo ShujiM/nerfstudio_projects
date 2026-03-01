@@ -1,81 +1,104 @@
 #!/bin/bash
 # ============================================
-# Nerfstudio Docker Helper Script
+# 3DGS Studio Docker Helper Script (Linux/Mac)
 # ============================================
 
 set -e
 
 case "${1}" in
   build)
-    echo "🔨 Building Nerfstudio Docker image..."
+    echo "Building all Docker images..."
     docker compose build
     ;;
+  build-ns)
+    echo "Building Nerfstudio image only..."
+    docker compose build nerfstudio
+    ;;
+  build-sugar)
+    echo "Building SuGaR image..."
+    docker compose build sugar
+    ;;
+  build-2dgs)
+    echo "Building 2DGS image..."
+    docker compose build 2dgs
+    ;;
   up)
-    echo "🚀 Starting Nerfstudio container..."
-    docker compose up -d
-    echo "✅ Container started."
+    echo "Starting all containers..."
+    docker compose --profile all up -d
+    echo "Containers started."
     echo "   - Web UI: http://localhost:8501"
     echo "   - Viewer: http://localhost:7007"
     ;;
+  up-ns)
+    echo "Starting Nerfstudio container only..."
+    docker compose up -d nerfstudio
+    ;;
+  up-sugar)
+    echo "Starting SuGaR container..."
+    docker compose --profile sugar up -d sugar
+    ;;
+  up-2dgs)
+    echo "Starting 2DGS container..."
+    docker compose --profile 2dgs up -d 2dgs
+    ;;
   web)
-    echo "🌐 Starting Web UI..."
+    echo "Starting Web UI..."
     docker compose exec nerfstudio python3 -m streamlit run app.py --server.address=0.0.0.0
     ;;
   shell)
-    echo "🐚 Opening shell in Nerfstudio container..."
+    echo "Opening shell in Nerfstudio container..."
     docker compose exec nerfstudio bash
     ;;
-  train)
-    if [ -z "${2}" ]; then
-      echo "Usage: ./start.sh train <method> [options]"
-      echo "Example: ./start.sh train splatfacto --data /workspace/data/nerfstudio/poster"
-      exit 1
-    fi
-    echo "🏋️ Starting training with: ns-train ${@:2}"
-    docker compose exec nerfstudio ns-train "${@:2}"
+  shell-sugar)
+    echo "Opening shell in SuGaR container..."
+    docker compose exec sugar bash
     ;;
-  process)
-    if [ -z "${2}" ]; then
-      echo "Usage: ./start.sh process <path-to-images>"
-      echo "Example: ./start.sh process /workspace/data/nerfstudio/poster/images"
-      exit 1
-    fi
-    echo "📸 Processing data: ns-process-data images --data ${2} --output-dir ${3:-/workspace/data/processed}"
-    docker compose exec nerfstudio ns-process-data images --data "${2}" --output-dir "${3:-/workspace/data/processed}"
-    ;;
-  export)
-    if [ -z "${2}" ]; then
-      echo "Usage: ./start.sh export <config-path>"
-      exit 1
-    fi
-    echo "📦 Exporting: ns-export ${@:2}"
-    docker compose exec nerfstudio ns-export "${@:2}"
+  shell-2dgs)
+    echo "Opening shell in 2DGS container..."
+    docker compose exec 2dgs bash
     ;;
   gpu)
-    echo "🖥️ Checking GPU status..."
+    echo "Checking GPU status..."
     docker compose exec nerfstudio nvidia-smi
     ;;
   down)
-    echo "⏹️ Stopping Nerfstudio container..."
+    echo "Stopping all containers..."
     docker compose down
     ;;
   logs)
-    docker compose logs -f nerfstudio
+    docker compose logs -f
+    ;;
+  status)
+    docker compose ps
     ;;
   *)
-    echo "Nerfstudio Docker Helper"
-    echo "========================"
+    echo "3DGS Studio Docker Helper"
+    echo "========================="
     echo "Usage: ./start.sh <command>"
     echo ""
     echo "Commands:"
-    echo "  build    - Build Docker image"
-    echo "  up       - Start container in background"
-    echo "  shell    - Open bash shell in container"
-    echo "  train    - Run ns-train (e.g., ./start.sh train splatfacto --data ...)"
-    echo "  process  - Run ns-process-data"
-    echo "  export   - Run ns-export"
-    echo "  gpu      - Check GPU status (nvidia-smi)"
-    echo "  down     - Stop container"
-    echo "  logs     - View container logs"
+    echo "  build        - Build ALL Docker images"
+    echo "  build-ns     - Build Nerfstudio image only"
+    echo "  build-sugar  - Build SuGaR image"
+    echo "  build-2dgs   - Build 2DGS image"
+    echo "  up           - Start ALL containers"
+    echo "  up-ns        - Start Nerfstudio only"
+    echo "  up-sugar     - Start SuGaR container"
+    echo "  up-2dgs      - Start 2DGS container"
+    echo "  web          - Start Web UI (http://localhost:8501)"
+    echo "  shell        - Open Nerfstudio shell"
+    echo "  shell-sugar  - Open SuGaR shell"
+    echo "  shell-2dgs   - Open 2DGS shell"
+    echo "  gpu          - Check GPU status"
+    echo "  down         - Stop all containers"
+    echo "  logs         - View container logs"
+    echo "  status       - Show container status"
+    echo ""
+    echo "Quick Start:"
+    echo "  1. ./start.sh build-ns    (first time: build nerfstudio)"
+    echo "  2. ./start.sh up-ns       (start nerfstudio container)"
+    echo "  3. ./start.sh web         (start web UI)"
+    echo "  4. ./start.sh build-sugar (when ready for SuGaR)"
+    echo "  5. ./start.sh build-2dgs  (when ready for 2DGS)"
     ;;
 esac
